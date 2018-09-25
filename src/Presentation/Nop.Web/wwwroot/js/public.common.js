@@ -27,41 +27,34 @@ function displayAjaxLoading(display) {
 }
 
 function displayPopupNotification(message, messagetype, modal) {
-    //types: success, error, warning
-    var container;
-    if (messagetype == 'success') {
-        //success
-        container = $('#dialog-notifications-success');
-    }
-    else if (messagetype == 'error') {
-        //error
-        container = $('#dialog-notifications-error');
-    }
-    else if (messagetype == 'warning') {
-        //warning
-        container = $('#dialog-notifications-warning');
-    }
-    else {
-        //other
-        container = $('#dialog-notifications-success');
-    }
 
-    //we do not encode displayed message
-    var htmlcode = '';
-    if ((typeof message) == 'string') {
-        htmlcode = '<p>' + message + '</p>';
-    } else {
-        for (var i = 0; i < message.length; i++) {
-            htmlcode = htmlcode + '<p>' + message[i] + '</p>';
-        }
+    var messages = typeof message === 'string' ? [message] : message;
+    if (messages.length === 0)
+        return;
+
+    //types: success, error, warning
+    messagetype = ['success', 'error', 'warning'].indexOf(messagetype) !== -1 ? messagetype : 'success';
+    var container = $('#dialog-notifications-' + messagetype);
+
+    var htmlcode = document.createElement('div');
+    var breaker = document.createElement('hr');
+
+    htmlcode.append(breaker);
+    for (var i = 0; i < messages.length; i++) {
+        var elem = document.createElement('p');
+        breaker = document.createElement('hr');
+
+        elem.innerHTML = messages[i];
+
+        htmlcode.append(elem);
+        htmlcode.append(breaker);
     }
 
     container.html(htmlcode);
 
-    var isModal = (modal ? true : false);
     container.dialog({
-        modal: isModal,
-        width: 350
+        width: 350,
+        modal: !!modal
     });
 }
 function displayPopupContentFromUrl(url, title, modal, width) {
@@ -81,55 +74,57 @@ function displayPopupContentFromUrl(url, title, modal, width) {
         });
 }
 
-var barNotificationTimeout;
 function displayBarNotification(message, messagetype, timeout) {
-    clearTimeout(barNotificationTimeout);
+    var notificationTimeout;
+
+    var messages = typeof message === 'string' ? [message] : message;
+    if (messages.length === 0)
+        return;
 
     //types: success, error, warning
-    var cssclass = 'success';
-    if (messagetype == 'success') {
-        cssclass = 'success';
-    }
-    else if (messagetype == 'error') {
-        cssclass = 'error';
-    }
-    else if (messagetype == 'warning') {
-        cssclass = 'warning';
-    }
-    //remove previous CSS classes and notifications
-    $('#bar-notification')
-        .removeClass('success')
-        .removeClass('error')
-        .removeClass('warning');
-    $('#bar-notification .content').remove();
-
-    //we do not encode displayed message
+    var cssclass = ['success', 'error', 'warning'].indexOf(messagetype) !== -1 ? messagetype : 'success';
 
     //add new notifications
-    var htmlcode = '';
-    if ((typeof message) == 'string') {
-        htmlcode = '<p class="content">' + message + '</p>';
-    } else {
-        for (var i = 0; i < message.length; i++) {
-            htmlcode = htmlcode + '<p class="content">' + message[i] + '</p>';
-        }
-    }
-    $('#bar-notification').append(htmlcode)
-        .addClass(cssclass)
-        .fadeIn('slow')
-        .on('mouseenter', function ()
-            {
-                clearTimeout(barNotificationTimeout);
-            });
+    var htmlcode = document.createElement('div');
+    htmlcode.classList.add('bar-notification', cssclass);
 
-    $('#bar-notification .close').off('click').on('click', function () {
-        $('#bar-notification').fadeOut('slow');
+    //add close button for notification
+    var close = document.createElement('span');
+    close.classList.add('close');
+    close.setAttribute('title', document.getElementById('bar-notification').dataset.close);
+
+    for (var i = 0; i < messages.length; i++) {
+        var content = document.createElement('p');
+        content.classList.add('content');
+        content.innerHTML = messages[i];
+
+        htmlcode.append(content);
+    }
+    
+    htmlcode.append(close);
+
+    $('#bar-notification')
+        .append(htmlcode);
+
+    $(htmlcode)
+        .fadeIn('slow')
+        .on('mouseenter', function() {
+            clearTimeout(notificationTimeout);
+        });
+
+    //callback for notification removing
+    var removeNoteItem = function () {
+        htmlcode.remove();
+    };
+
+    $(close).on('click', function () {
+        $(htmlcode).fadeOut('slow', removeNoteItem);
     });
 
     //timeout (if set)
     if (timeout > 0) {
-        barNotificationTimeout = setTimeout(function () {
-            $('#bar-notification').fadeOut('slow');
+        notificationTimeout = setTimeout(function () {
+            $(htmlcode).fadeOut('slow', removeNoteItem);
         }, timeout);
     }
 }
